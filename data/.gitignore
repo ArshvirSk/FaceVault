@@ -1,0 +1,24 @@
+# Ignore all files in data directory except .gitkeep
+*
+!.gitkeep
+!.gitignore
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Cache
+cache/
+
+# Profile photos (contains user data)
+profile_photos/
+
+# Any image files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.webp

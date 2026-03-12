@@ -50,7 +50,7 @@ Everything happens **locally**. No accounts with third parties, no subscriptions
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Setup
 
 ### Prerequisites
 
@@ -74,55 +74,139 @@ cd FaceVault
 
 ---
 
-### 2. Backend setup
+### 2. Backend
 
 ```bash
 cd backend
 
-# Create a virtual environment
+# Create and activate a virtual environment
 python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # macOS / Linux
 
-# Activate it
-# Windows:
-.venv\Scripts\activate
-# macOS / Linux:
-source .venv/bin/activate
-
-# Install dependencies (~2–5 min, downloads AI models on first run)
+# Install dependencies (~2–5 min; AI models download on first run)
 pip install -r requirements.txt
-
-# Start the API server
-uvicorn main:app --reload
 ```
 
-The API will be live at **<http://localhost:8000>**  
-Interactive API docs: **<http://localhost:8000/docs>**
-
-> **Note:** On first run, InsightFace will automatically download the `buffalo_l` model (~500 MB) to `~/.insightface/`. This only happens once.
+> On first run, InsightFace downloads the `buffalo_l` model (~500 MB) to `~/.insightface/`. This only happens once.
 
 ---
 
-### 3. Frontend setup
+### 3. Frontend
 
 Open a **second terminal**:
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start the dev server
-npm run dev
 ```
-
-The web app will be live at **<http://localhost:3000>**
 
 ---
 
-### 4. First run
+### 4. Choose your setup mode
 
-1. Open **<http://localhost:3000>**
+Pick the scenario that matches how you want to run FaceVault:
+
+---
+
+#### 💻 Option A — Localhost (just you, one machine)
+
+No configuration needed. Start both servers and go:
+
+```bash
+# Terminal 1 — backend
+cd backend && uvicorn main:app --reload
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+```
+
+| | URL |
+|---|---|
+| Web app | <http://localhost:3000> |
+| API | <http://localhost:8000> |
+| API docs | <http://localhost:8000/docs> |
+
+---
+
+#### 📡 Option B — Local Network (share with others on the same Wi-Fi)
+
+Run the servers on your machine; anyone on the same network can open the app on their phone or laptop.
+
+**Step 1 — find your machine's local IP**
+
+```bash
+# Windows
+ipconfig
+# macOS / Linux
+ip a
+# Look for something like 192.168.1.42
+```
+
+**Step 2 — configure environment variables**
+
+```bash
+# backend/.env  (copy from backend/.env.example)
+FRONTEND_URL=http://192.168.1.42:3000
+
+# frontend/.env.local  (copy from frontend/.env.local.example)
+NEXT_PUBLIC_API_URL=http://192.168.1.42:8000
+```
+
+**Step 3 — start servers bound to all interfaces**
+
+```bash
+# Terminal 1 — backend
+cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+```
+
+Other devices on the same Wi-Fi open **`http://192.168.1.42:3000`** — done.
+
+> **Note:** Photos are scanned from the *server machine's* file system. The folder path you enter in the app is local to wherever the backend is running.
+
+---
+
+#### 🌐 Option C — Self-hosted / Custom Domain
+
+For running on a VPS, home server, or behind a reverse proxy (nginx, Caddy, etc.).
+
+**Environment variables**
+
+```bash
+# backend/.env
+FRONTEND_URL=https://facevault.example.com
+
+# frontend/.env.local
+NEXT_PUBLIC_API_URL=https://api.facevault.example.com
+```
+
+**Build the frontend for production**
+
+```bash
+cd frontend
+npm run build
+npm start          # runs on port 3000 by default
+```
+
+**Start the backend**
+
+```bash
+cd backend
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+Then point your reverse proxy at port `3000` (frontend) and `8000` (backend API).
+
+> **HTTPS note:** If your domain uses HTTPS, both `FRONTEND_URL` and `NEXT_PUBLIC_API_URL` must use `https://`. Browsers block mixed content (HTTPS page → HTTP API).
+
+---
+
+### 5. First run
+
+1. Open the web app URL for your chosen setup
 2. Click **Register** — create your account with a profile photo *(used for face matching)*
 3. Click **New Album** → enter a name and a local folder path containing photos
 4. Watch the real-time progress bar as FaceVault scans, detects, and clusters faces
@@ -373,12 +457,12 @@ pip install onnxruntime-silicon
 
 ### CORS errors in the browser
 
-Make sure both servers are running on the correct ports:
+Make sure the environment variables match the actual URLs you're using:
 
-- Backend → **<http://localhost:8000>**  
-- Frontend → **<http://localhost:3000>**
+- `frontend/.env.local` → `NEXT_PUBLIC_API_URL` must point to the backend
+- `backend/.env` → `FRONTEND_URL` must point to the frontend
 
-If you change the backend port, update `API_URL` constants in all frontend files and the `allow_origins` list in `backend/main.py`.
+For localhost development neither file is needed — defaults apply automatically.
 
 ### Photos not loading after moving files
 

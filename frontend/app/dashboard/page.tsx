@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import axios from 'axios'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 const API_URL = 'http://localhost:8000'
 
 export default function DashboardPage() {
-  const [folderPath, setFolderPath] = useState('')
-  const [albumName, setAlbumName] = useState('')
-  const [scanning, setScanning] = useState(false)
-  const [result, setResult] = useState<any>(null)
-  const [progress, setProgress] = useState<any>(null)
-  const [albums, setAlbums] = useState<any[]>([])
+  const router = useRouter()
+  useEffect(() => { router.replace('/albums') }, [router])
+  return null
+}
+
+// ─── legacy component removed ─────────────────────────────────────────────
+function _noop() {
+  const albums: any[] = []
 
   const fetchAlbums = async () => {
     try {
@@ -29,11 +30,11 @@ export default function DashboardPage() {
 
   const handleScan = async () => {
     if (!folderPath) return
-    
+
     setScanning(true)
     setResult(null)
     setProgress(null)
-    
+
     try {
       const response = await fetch(`${API_URL}/scan`, {
         method: 'POST',
@@ -41,7 +42,7 @@ export default function DashboardPage() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           folder_path: folderPath,
           album_name: albumName || undefined
         })
@@ -88,10 +89,10 @@ export default function DashboardPage() {
     try {
       const diagResponse = await axios.get(`${API_URL}/diagnostics`, { withCredentials: true })
       const diag = diagResponse.data
-      
+
       if (diag.faces_without_person > 0 || diag.persons_without_faces > 0) {
         const message = `Found issues:\n- ${diag.faces_without_person} faces without person\n- ${diag.persons_without_faces} persons without faces\n\nFix these issues?`
-        
+
         if (confirm(message)) {
           const fixResponse = await axios.post(`${API_URL}/fix-data`, {}, { withCredentials: true })
           alert(fixResponse.data.message)
@@ -108,9 +109,9 @@ export default function DashboardPage() {
     try {
       const statusResponse = await axios.get(`${API_URL}/search-index-status`, { withCredentials: true })
       const status = statusResponse.data
-      
+
       const message = `Current search index:\n- ${status.index_size} faces indexed\n- ${status.face_ids_count} face IDs\n\nRebuild search index?`
-      
+
       if (confirm(message)) {
         const rebuildResponse = await axios.post(`${API_URL}/rebuild-search-index`, {}, { withCredentials: true })
         alert(rebuildResponse.data.message)
@@ -207,7 +208,7 @@ export default function DashboardPage() {
             {progress.stage === 'processing' && (
               <div className="space-y-2">
                 <div className="w-full bg-blue-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${(progress.processed / progress.total) * 100}%` }}
                   />

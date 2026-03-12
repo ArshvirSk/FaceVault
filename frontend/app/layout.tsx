@@ -1,8 +1,8 @@
-import './globals.css'
 import type { Metadata } from 'next'
-import { Providers } from './providers'
-import Navigation from './navigation'
 import AuthWrapper from './auth-wrapper'
+import './globals.css'
+import Navigation from './navigation'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: 'FaceVault',
@@ -15,10 +15,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="http://localhost:8000" />
         <link rel="dns-prefetch" href="http://localhost:8000" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('fv-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
+          }}
+        />
       </head>
       <body>
         <Providers>

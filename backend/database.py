@@ -5,15 +5,16 @@ import numpy as np
 import bcrypt
 import secrets as py_secrets
 
+
 class Database:
     def __init__(self, db_path: str = "../data/facevault.db"):
         self.db_path = db_path
         self.init_db()
-    
+
     def init_db(self):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         # Users table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -25,7 +26,7 @@ class Database:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Albums table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS albums (
@@ -38,7 +39,7 @@ class Database:
                 FOREIGN KEY (admin_user_id) REFERENCES users(user_id)
             )
         """)
-        
+
         # Album members junction table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS album_members (
@@ -50,7 +51,7 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
             )
         """)
-        
+
         # Album invite links table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS album_invites (
@@ -67,7 +68,29 @@ class Database:
                 FOREIGN KEY (created_by) REFERENCES users(user_id)
             )
         """)
-        
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS album_blocked_members (
+                album_id INTEGER NOT NULL,
+                blocked_user_id INTEGER NOT NULL,
+                blocked_by INTEGER NOT NULL,
+                blocked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (album_id, blocked_user_id),
+                FOREIGN KEY (album_id) REFERENCES albums(album_id) ON DELETE CASCADE,
+                FOREIGN KEY (blocked_user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            )
+        """)
+
+        # Sessions table for persistent auth
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                expires_at DATETIME NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            )
+        """)
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS photos (
                 photo_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +101,7 @@ class Database:
                 FOREIGN KEY (album_id) REFERENCES albums(album_id)
             )
         """)
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS persons (
                 person_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,7 +113,7 @@ class Database:
                 FOREIGN KEY (user_id) REFERENCES users(user_id)
             )
         """)
-        
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS faces (
                 face_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,52 +129,67 @@ class Database:
                 FOREIGN KEY (person_id) REFERENCES persons(person_id)
             )
         """)
-        
+
         # Migration: Add album_id columns if they don't exist
         try:
             cursor.execute("SELECT album_id FROM photos LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE photos ADD COLUMN album_id INTEGER")
             print("✓ Migrated photos table: added album_id column")
-        
+
         try:
             cursor.execute("SELECT album_id FROM persons LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE persons ADD COLUMN album_id INTEGER")
             print("✓ Migrated persons table: added album_id column")
-        
+
         # Migration: Add multi-user columns
         try:
             cursor.execute("SELECT admin_user_id FROM albums LIMIT 1")
         except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE albums ADD COLUMN admin_user_id INTEGER")
+            cursor.execute(
+                "ALTER TABLE albums ADD COLUMN admin_user_id INTEGER")
             print("✓ Migrated albums table: added admin_user_id column")
-        
+
         try:
             cursor.execute("SELECT privacy_mode FROM albums LIMIT 1")
         except sqlite3.OperationalError:
-            cursor.execute("ALTER TABLE albums ADD COLUMN privacy_mode TEXT DEFAULT 'public'")
+            cursor.execute(
+                "ALTER TABLE albums ADD COLUMN privacy_mode TEXT DEFAULT 'public'")
             print("✓ Migrated albums table: added privacy_mode column")
-        
+
         try:
             cursor.execute("SELECT user_id FROM persons LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE persons ADD COLUMN user_id INTEGER")
             print("✓ Migrated persons table: added user_id column")
-        
+
+        try:
+            cursor.execute("SELECT access_level FROM album_invites LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute(
+                "ALTER TABLE album_invites ADD COLUMN access_level TEXT DEFAULT 'full'")
+            print("✓ Migrated album_invites table: added access_level column")
+
+        try:
+            cursor.execute("SELECT taken_at FROM photos LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE photos ADD COLUMN taken_at DATETIME")
+            print("✓ Migrated photos table: added taken_at column")
+
         conn.commit()
         conn.close()
-    
+
     def add_album(self, name: str, folder_path: str, admin_user_id: Optional[int] = None) -> int:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO albums (name, folder_path, admin_user_id) VALUES (?, ?, ?)", 
-                      (name, folder_path, admin_user_id))
+        cursor.execute("INSERT INTO albums (name, folder_path, admin_user_id) VALUES (?, ?, ?)",
+                       (name, folder_path, admin_user_id))
         album_id = cursor.lastrowid
         conn.commit()
         conn.close()
         return album_id
-    
+
     def get_all_albums(self) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -175,21 +213,22 @@ class Database:
         } for row in cursor.fetchall()]
         conn.close()
         return albums
-    
-    def add_photo(self, file_path: str, file_hash: str, album_id: Optional[int] = None) -> int:
+
+    def add_photo(self, file_path: str, file_hash: str, album_id: Optional[int] = None, taken_at: Optional[str] = None) -> int:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("INSERT OR IGNORE INTO photos (file_path, file_hash, album_id) VALUES (?, ?, ?)", 
-                      (file_path, file_hash, album_id))
+        cursor.execute("INSERT OR IGNORE INTO photos (file_path, file_hash, album_id, taken_at) VALUES (?, ?, ?, ?)",
+                       (file_path, file_hash, album_id, taken_at))
         photo_id = cursor.lastrowid
         if photo_id == 0:
-            cursor.execute("SELECT photo_id FROM photos WHERE file_path = ?", (file_path,))
+            cursor.execute(
+                "SELECT photo_id FROM photos WHERE file_path = ?", (file_path,))
             photo_id = cursor.fetchone()[0]
         conn.commit()
         conn.close()
         return photo_id
-    
-    def add_face(self, photo_id: int, bbox: Tuple[int, int, int, int], 
+
+    def add_face(self, photo_id: int, bbox: Tuple[int, int, int, int],
                  embedding: np.ndarray, confidence: float, person_id: Optional[int] = None) -> int:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -202,35 +241,36 @@ class Database:
         conn.commit()
         conn.close()
         return face_id
-    
-    def add_person(self, cluster_id: int, name: Optional[str] = None, album_id: Optional[int] = None, 
+
+    def add_person(self, cluster_id: int, name: Optional[str] = None, album_id: Optional[int] = None,
                    user_id: Optional[int] = None) -> int:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         if name is None:
             name = f"Person_{cluster_id}"
-        cursor.execute("INSERT INTO persons (cluster_id, name, album_id, user_id) VALUES (?, ?, ?, ?)", 
-                      (cluster_id, name, album_id, user_id))
+        cursor.execute("INSERT INTO persons (cluster_id, name, album_id, user_id) VALUES (?, ?, ?, ?)",
+                       (cluster_id, name, album_id, user_id))
         person_id = cursor.lastrowid
         conn.commit()
         conn.close()
         return person_id
-    
+
     def update_face_person(self, face_id: int, person_id: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("UPDATE faces SET person_id = ? WHERE face_id = ?", (person_id, face_id))
+        cursor.execute(
+            "UPDATE faces SET person_id = ? WHERE face_id = ?", (person_id, face_id))
         conn.commit()
         conn.close()
-    
-    def get_all_persons(self, album_id: Optional[int] = None, user_id: Optional[int] = None, 
-                        privacy_mode: str = 'public') -> List[dict]:
+
+    def get_all_persons(self, album_id: Optional[int] = None, user_id: Optional[int] = None,
+                        privacy_mode: str = 'public', is_admin: bool = False) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         if album_id is not None:
-            if privacy_mode == 'private' and user_id is not None:
-                # Private mode: only show user's own person cluster
+            if privacy_mode == 'private' and user_id is not None and not is_admin:
+                # Private mode (non-admin): only show user's own person cluster
                 cursor.execute("""
                     SELECT p.person_id, p.name, p.album_id, p.user_id, COUNT(DISTINCT f.photo_id) as photo_count
                     FROM persons p
@@ -257,13 +297,13 @@ class Database:
                 GROUP BY p.person_id
                 HAVING COUNT(DISTINCT f.photo_id) > 0
             """)
-        
-        persons = [{"person_id": row[0], "name": row[1], "album_id": row[2], 
-                   "user_id": row[3], "photo_count": row[4]} 
-                  for row in cursor.fetchall()]
+
+        persons = [{"person_id": row[0], "name": row[1], "album_id": row[2],
+                   "user_id": row[3], "photo_count": row[4]}
+                   for row in cursor.fetchall()]
         conn.close()
         return persons
-    
+
     def get_photos_for_person(self, person_id: int) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -272,29 +312,42 @@ class Database:
             FROM photos ph
             JOIN faces f ON ph.photo_id = f.photo_id
             WHERE f.person_id = ?
+            ORDER BY ph.taken_at ASC, ph.photo_id ASC
         """, (person_id,))
-        photos = [{"photo_id": row[0], "file_path": row[1]} for row in cursor.fetchall()]
+        photos = [{"photo_id": row[0], "file_path": row[1]}
+                  for row in cursor.fetchall()]
         conn.close()
         return photos
-    
+
     def rename_person(self, person_id: int, new_name: str):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("UPDATE persons SET name = ? WHERE person_id = ?", (new_name, person_id))
+        cursor.execute(
+            "UPDATE persons SET name = ? WHERE person_id = ?", (new_name, person_id))
         conn.commit()
         conn.close()
-    
+
+    def assign_person_to_user(self, person_id: int, user_id: int):
+        """Link a person cluster to a specific user (used for auto face-matching)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE persons SET user_id = ? WHERE person_id = ?", (user_id, person_id))
+        conn.commit()
+        conn.close()
+
     def get_all_embeddings(self) -> Tuple[List[np.ndarray], List[int]]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT face_id, embedding FROM faces WHERE embedding IS NOT NULL")
+        cursor.execute(
+            "SELECT face_id, embedding FROM faces WHERE embedding IS NOT NULL")
         rows = cursor.fetchall()
         conn.close()
-        
+
         face_ids = [row[0] for row in rows]
         embeddings = [np.frombuffer(row[1], dtype=np.float32) for row in rows]
         return embeddings, face_ids
-    
+
     def get_person_thumbnail(self, person_id: int) -> Optional[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -312,12 +365,14 @@ class Database:
         return None
 
     # User management methods
-    def create_user(self, username: str, password: str, profile_photo_path: Optional[str] = None, 
+    def create_user(self, username: str, password: str, profile_photo_path: Optional[str] = None,
                     profile_face_embedding: Optional[np.ndarray] = None) -> int:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        embedding_blob = profile_face_embedding.tobytes() if profile_face_embedding is not None else None
+        password_hash = bcrypt.hashpw(password.encode(
+            'utf-8'), bcrypt.gensalt()).decode('utf-8')
+        embedding_blob = profile_face_embedding.tobytes(
+        ) if profile_face_embedding is not None else None
         cursor.execute("""
             INSERT INTO users (username, password_hash, profile_photo_path, profile_face_embedding)
             VALUES (?, ?, ?, ?)
@@ -326,17 +381,18 @@ class Database:
         conn.commit()
         conn.close()
         return user_id
-    
+
     def verify_user(self, username: str, password: str) -> Optional[int]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id, password_hash FROM users WHERE username = ?", (username,))
+        cursor.execute(
+            "SELECT user_id, password_hash FROM users WHERE username = ?", (username,))
         row = cursor.fetchone()
         conn.close()
         if row and bcrypt.checkpw(password.encode('utf-8'), row[1].encode('utf-8')):
             return row[0]
         return None
-    
+
     def get_user_by_id(self, user_id: int) -> Optional[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -349,28 +405,30 @@ class Database:
         if row:
             return {"user_id": row[0], "username": row[1], "profile_photo_path": row[2], "created_at": row[3]}
         return None
-    
+
     def get_all_users(self) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id, username, profile_photo_path, created_at FROM users")
-        users = [{"user_id": row[0], "username": row[1], "profile_photo_path": row[2], "created_at": row[3]} 
-                for row in cursor.fetchall()]
+        cursor.execute(
+            "SELECT user_id, username, profile_photo_path, created_at FROM users")
+        users = [{"user_id": row[0], "username": row[1], "profile_photo_path": row[2], "created_at": row[3]}
+                 for row in cursor.fetchall()]
         conn.close()
         return users
-    
+
     def get_user_profile_embedding(self, user_id: int) -> Optional[np.ndarray]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT profile_face_embedding FROM users WHERE user_id = ?", (user_id,))
+        cursor.execute(
+            "SELECT profile_face_embedding FROM users WHERE user_id = ?", (user_id,))
         row = cursor.fetchone()
         conn.close()
         if row and row[0]:
             return np.frombuffer(row[0], dtype=np.float32)
         return None
-    
-    def update_user_profile_photo(self, user_id: int, profile_photo_path: str, 
-                                   profile_face_embedding: np.ndarray):
+
+    def update_user_profile_photo(self, user_id: int, profile_photo_path: str,
+                                  profile_face_embedding: np.ndarray):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         embedding_blob = profile_face_embedding.tobytes()
@@ -380,38 +438,45 @@ class Database:
         """, (profile_photo_path, embedding_blob, user_id))
         conn.commit()
         conn.close()
-    
+
     # Album membership methods
     def add_album_member(self, album_id: int, user_id: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("INSERT OR IGNORE INTO album_members (album_id, user_id) VALUES (?, ?)", 
-                      (album_id, user_id))
+        cursor.execute("INSERT OR IGNORE INTO album_members (album_id, user_id) VALUES (?, ?)",
+                       (album_id, user_id))
         conn.commit()
         conn.close()
-    
+
     def remove_album_member(self, album_id: int, user_id: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM album_members WHERE album_id = ? AND user_id = ?", 
-                      (album_id, user_id))
+        cursor.execute("DELETE FROM album_members WHERE album_id = ? AND user_id = ?",
+                       (album_id, user_id))
         conn.commit()
         conn.close()
-    
+
     def get_album_members(self, album_id: int) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        # Include admin (stored in albums.admin_user_id) even if not in album_members table,
+        # then union with regular members — deduplicated by user_id.
         cursor.execute("""
+            SELECT u.user_id, u.username, u.profile_photo_path, a.created_at as added_at
+            FROM albums a
+            JOIN users u ON a.admin_user_id = u.user_id
+            WHERE a.album_id = ?
+            UNION
             SELECT u.user_id, u.username, u.profile_photo_path, am.added_at
             FROM album_members am
             JOIN users u ON am.user_id = u.user_id
             WHERE am.album_id = ?
-        """, (album_id,))
-        members = [{"user_id": row[0], "username": row[1], "profile_photo_path": row[2], "added_at": row[3]} 
-                  for row in cursor.fetchall()]
+        """, (album_id, album_id))
+        members = [{"user_id": row[0], "username": row[1], "profile_photo_path": row[2], "added_at": row[3]}
+                   for row in cursor.fetchall()]
         conn.close()
         return members
-    
+
     def is_album_member(self, album_id: int, user_id: int) -> bool:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -421,15 +486,16 @@ class Database:
         result = cursor.fetchone() is not None
         conn.close()
         return result
-    
+
     def is_album_admin(self, album_id: int, user_id: int) -> bool:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT admin_user_id FROM albums WHERE album_id = ?", (album_id,))
+        cursor.execute(
+            "SELECT admin_user_id FROM albums WHERE album_id = ?", (album_id,))
         row = cursor.fetchone()
         conn.close()
         return row and row[0] == user_id
-    
+
     def get_user_albums(self, user_id: int) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -459,55 +525,57 @@ class Database:
         } for row in cursor.fetchall()]
         conn.close()
         return albums
-    
+
     def update_album_privacy_mode(self, album_id: int, privacy_mode: str):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("UPDATE albums SET privacy_mode = ? WHERE album_id = ?", 
-                      (privacy_mode, album_id))
+        cursor.execute("UPDATE albums SET privacy_mode = ? WHERE album_id = ?",
+                       (privacy_mode, album_id))
         conn.commit()
         conn.close()
 
     # Album invite methods
-    def create_album_invite(self, album_id: int, created_by: int, expires_days: Optional[int] = None, 
-                           max_uses: Optional[int] = None) -> dict:
+    def create_album_invite(self, album_id: int, created_by: int, expires_days: Optional[int] = None,
+                            max_uses: Optional[int] = None, access_level: str = 'full') -> dict:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         invite_token = py_secrets.token_urlsafe(32)
         expires_at = None
         if expires_days:
             from datetime import datetime, timedelta
-            expires_at = (datetime.now() + timedelta(days=expires_days)).isoformat()
-        
+            expires_at = (datetime.now() +
+                          timedelta(days=expires_days)).isoformat()
+
         cursor.execute("""
-            INSERT INTO album_invites (album_id, invite_token, created_by, expires_at, max_uses)
-            VALUES (?, ?, ?, ?, ?)
-        """, (album_id, invite_token, created_by, expires_at, max_uses))
-        
+            INSERT INTO album_invites (album_id, invite_token, created_by, expires_at, max_uses, access_level)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (album_id, invite_token, created_by, expires_at, max_uses, access_level))
+
         invite_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        
+
         return {
             "invite_id": invite_id,
             "invite_token": invite_token,
             "expires_at": expires_at,
-            "max_uses": max_uses
+            "max_uses": max_uses,
+            "access_level": access_level
         }
-    
+
     def get_album_invite(self, invite_token: str) -> Optional[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT invite_id, album_id, invite_token, created_by, created_at, 
-                   expires_at, max_uses, use_count, is_active
+                   expires_at, max_uses, use_count, is_active, access_level
             FROM album_invites
             WHERE invite_token = ?
         """, (invite_token,))
         row = cursor.fetchone()
         conn.close()
-        
+
         if row:
             return {
                 "invite_id": row[0],
@@ -518,69 +586,70 @@ class Database:
                 "expires_at": row[5],
                 "max_uses": row[6],
                 "use_count": row[7],
-                "is_active": bool(row[8])
+                "is_active": bool(row[8]),
+                "access_level": row[9] or 'full'
             }
         return None
-    
+
     def use_album_invite(self, invite_token: str, user_id: int) -> bool:
         from datetime import datetime
-        
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         # Get invite details
         invite = self.get_album_invite(invite_token)
         if not invite:
             conn.close()
             return False
-        
+
         # Check if invite is valid
         if not invite["is_active"]:
             conn.close()
             return False
-        
+
         # Check expiration
         if invite["expires_at"]:
             expires = datetime.fromisoformat(invite["expires_at"])
             if datetime.now() > expires:
                 conn.close()
                 return False
-        
+
         # Check max uses
         if invite["max_uses"] and invite["use_count"] >= invite["max_uses"]:
             conn.close()
             return False
-        
+
         # Check if user is already a member
         if self.is_album_member(invite["album_id"], user_id):
             conn.close()
             return True  # Already a member, consider it success
-        
+
         # Add user to album
         self.add_album_member(invite["album_id"], user_id)
-        
+
         # Increment use count
         cursor.execute("""
             UPDATE album_invites SET use_count = use_count + 1
             WHERE invite_token = ?
         """, (invite_token,))
-        
+
         conn.commit()
         conn.close()
         return True
-    
+
     def get_album_invites(self, album_id: int) -> List[dict]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
             SELECT i.invite_id, i.invite_token, i.created_at, i.expires_at, 
-                   i.max_uses, i.use_count, i.is_active, u.username
+                   i.max_uses, i.use_count, i.is_active, u.username, i.access_level
             FROM album_invites i
             JOIN users u ON i.created_by = u.user_id
             WHERE i.album_id = ?
             ORDER BY i.created_at DESC
         """, (album_id,))
-        
+
         invites = [{
             "invite_id": row[0],
             "invite_token": row[1],
@@ -589,15 +658,157 @@ class Database:
             "max_uses": row[4],
             "use_count": row[5],
             "is_active": bool(row[6]),
-            "created_by_username": row[7]
+            "created_by_username": row[7],
+            "access_level": row[8] or 'full'
         } for row in cursor.fetchall()]
-        
+
         conn.close()
         return invites
-    
+
     def deactivate_invite(self, invite_id: int):
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("UPDATE album_invites SET is_active = 0 WHERE invite_id = ?", (invite_id,))
+        cursor.execute(
+            "UPDATE album_invites SET is_active = 0 WHERE invite_id = ?", (invite_id,))
         conn.commit()
         conn.close()
+
+    # Block/unblock methods
+    def block_member(self, album_id: int, blocked_user_id: int, blocked_by: int):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO album_blocked_members (album_id, blocked_user_id, blocked_by)
+            VALUES (?, ?, ?)
+        """, (album_id, blocked_user_id, blocked_by))
+        conn.commit()
+        conn.close()
+
+    def unblock_member(self, album_id: int, blocked_user_id: int):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM album_blocked_members WHERE album_id = ? AND blocked_user_id = ?",
+            (album_id, blocked_user_id))
+        conn.commit()
+        conn.close()
+
+    def get_blocked_members(self, album_id: int) -> List[dict]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT b.blocked_user_id, u.username, b.blocked_at
+            FROM album_blocked_members b
+            JOIN users u ON b.blocked_user_id = u.user_id
+            WHERE b.album_id = ?
+            ORDER BY b.blocked_at DESC
+        """, (album_id,))
+        blocked = [{"user_id": row[0], "username": row[1], "blocked_at": row[2]}
+                   for row in cursor.fetchall()]
+        conn.close()
+        return blocked
+
+    def is_blocked(self, album_id: int, user_id: int) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM album_blocked_members WHERE album_id = ? AND blocked_user_id = ?",
+            (album_id, user_id))
+        result = cursor.fetchone() is not None
+        conn.close()
+        return result
+
+    # Photo deletion
+    def delete_photo(self, photo_id: int) -> Optional[str]:
+        """Delete a photo and its faces. Returns file_path for cleanup."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT file_path FROM photos WHERE photo_id = ?", (photo_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return None
+        file_path = row[0]
+        cursor.execute("DELETE FROM faces WHERE photo_id = ?", (photo_id,))
+        cursor.execute("DELETE FROM photos WHERE photo_id = ?", (photo_id,))
+        # Remove empty persons (no faces left)
+        cursor.execute("""
+            DELETE FROM persons WHERE person_id NOT IN (
+                SELECT DISTINCT person_id FROM faces WHERE person_id IS NOT NULL
+            ) AND album_id IN (
+                SELECT album_id FROM photos WHERE photo_id = ?
+            )
+        """, (photo_id,))
+        conn.commit()
+        conn.close()
+        return file_path
+
+    # Account deletion
+    def delete_user(self, user_id: int) -> Optional[str]:
+        """Delete a user account. Returns profile_photo_path for cleanup."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT profile_photo_path FROM users WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        profile_path = row[0] if row else None
+        # Orphan albums where user is admin (set admin to NULL)
+        cursor.execute(
+            "UPDATE albums SET admin_user_id = NULL WHERE admin_user_id = ?", (user_id,))
+        # Cascade: album_members and album_blocked_members use ON DELETE CASCADE
+        cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+        return profile_path
+
+    # Session management (persistent SQLite sessions)
+    def create_session(self, token: str, user_id: int, expires_at) -> None:
+        """Persist a new session token."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
+            (token, user_id, expires_at.isoformat())
+        )
+        conn.commit()
+        conn.close()
+
+    def get_session(self, token: str) -> Optional[dict]:
+        """Return session dict if token exists and is not expired, else None."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT user_id, expires_at FROM sessions WHERE token = ?", (token,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        from datetime import datetime
+        expires_at = datetime.fromisoformat(row[1])
+        if datetime.now() > expires_at:
+            self.delete_session(token)
+            return None
+        return {"user_id": row[0], "expires_at": expires_at}
+
+    def delete_session(self, token: str) -> None:
+        """Remove a specific session (logout)."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+
+    def delete_expired_sessions(self) -> int:
+        """Remove all expired sessions. Returns count of deleted rows."""
+        from datetime import datetime
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM sessions WHERE expires_at < ?",
+            (datetime.now().isoformat(),)
+        )
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return deleted

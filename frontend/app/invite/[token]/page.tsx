@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import axios from 'axios';
 import { checkAuth } from '@/lib/auth';
+import axios from 'axios';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const API_URL = 'http://localhost:8000';
 
@@ -11,7 +11,7 @@ export default function InvitePage() {
   const params = useParams();
   const router = useRouter();
   const token = params.token as string;
-  
+
   const [loading, setLoading] = useState(true);
   const [inviteInfo, setInviteInfo] = useState<any>(null);
   const [error, setError] = useState('');
@@ -27,17 +27,14 @@ export default function InvitePage() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated && inviteInfo) {
-      setRedirecting(true);
-      const redirectUrl = `/invite/${token}`;
-      const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`;
-      console.log('Not authenticated, redirecting to login with redirect:', redirectUrl);
-      
-      // Small delay to show the redirect message
+      setRedirecting(true)
+      const redirectUrl = `/invite/${token}`
+      const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`
       setTimeout(() => {
-        window.location.href = loginUrl;
-      }, 1500);
+        window.location.href = loginUrl
+      }, 1500)
     }
-  }, [loading, isAuthenticated, inviteInfo, token]);
+  }, [loading, isAuthenticated, inviteInfo, token])
 
   // Re-check authentication when page becomes visible (after returning from login/register)
   useEffect(() => {
@@ -48,7 +45,7 @@ export default function InvitePage() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Also check on focus
     window.addEventListener('focus', checkAuthentication);
 
@@ -88,8 +85,7 @@ export default function InvitePage() {
         {},
         { withCredentials: true }
       );
-      
-      alert(response.data.message);
+
       router.push(`/albums/${response.data.album.album_id}`);
     } catch (error: any) {
       setError(error.response?.data?.detail || 'Failed to join album');
@@ -194,7 +190,7 @@ export default function InvitePage() {
 
         <div className="bg-gray-50 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">{inviteInfo.album_name}</h2>
-          
+
           <div className="space-y-2 text-sm text-gray-600">
             {inviteInfo.expires_at && (
               <div className="flex items-center gap-2">
@@ -222,11 +218,9 @@ export default function InvitePage() {
             </p>
             <button
               onClick={() => {
-                const redirectUrl = `/invite/${token}`;
-                const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`;
-                console.log('Navigating to login with redirect:', redirectUrl);
-                console.log('Full login URL:', loginUrl);
-                window.location.href = loginUrl;
+                const redirectUrl = `/invite/${token}`
+                const loginUrl = `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`
+                window.location.href = loginUrl
               }}
               className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:opacity-90 transition"
             >
@@ -234,11 +228,9 @@ export default function InvitePage() {
             </button>
             <button
               onClick={() => {
-                const redirectUrl = `/invite/${token}`;
-                const registerUrl = `/auth/register?redirect=${encodeURIComponent(redirectUrl)}`;
-                console.log('Navigating to register with redirect:', redirectUrl);
-                console.log('Full register URL:', registerUrl);
-                window.location.href = registerUrl;
+                const redirectUrl = `/invite/${token}`
+                const registerUrl = `/auth/register?redirect=${encodeURIComponent(redirectUrl)}`
+                window.location.href = registerUrl
               }}
               className="w-full px-6 py-3 border-2 border-purple-600 text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition"
             >

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
 import axios from 'axios'
 import Link from 'next/link'
+import { useRef, useState } from 'react'
+import { Toast, type ToastData } from '../components/Toast'
 
 const API_URL = 'http://localhost:8000'
 
@@ -11,6 +12,8 @@ interface SearchResult {
   file_path: string
   person_id: number
   person_name: string
+  album_id: number | null
+  album_name: string
   similarity: number
   distance: number
 }
@@ -20,13 +23,15 @@ export default function SearchPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<SearchResult[]>([])
+  const [noResults, setNoResults] = useState(false)
+  const [toast, setToast] = useState<ToastData | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setSelectedFile(file)
-      
+
       // Create preview URL
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -41,6 +46,7 @@ export default function SearchPage() {
 
     setSearching(true)
     setResults([])
+    setNoResults(false)
 
     try {
       const formData = new FormData()
@@ -56,20 +62,18 @@ export default function SearchPage() {
 
       const photos = response.data.photos || []
       setResults(photos)
-      
+
       if (photos.length === 0) {
-        alert(response.data.message || 'No similar faces found. The person might not be in your collection yet.')
+        setNoResults(true)
       }
     } catch (error: any) {
       console.error('Search error:', error)
-      
       if (error.response?.status === 400) {
-        // Face detection error
-        alert(error.response.data.detail || 'No face detected. Please upload a clear photo with a visible face.')
+        setToast({ message: error.response.data.detail || 'No face detected. Please upload a clear photo with a visible face.', type: 'error' })
       } else if (error.code === 'ECONNABORTED') {
-        alert('Search timed out. Please try again.')
+        setToast({ message: 'Search timed out. Please try again.', type: 'error' })
       } else {
-        alert('Search failed: ' + (error.response?.data?.detail || error.message))
+        setToast({ message: 'Search failed: ' + (error.response?.data?.detail || error.message), type: 'error' })
       }
     } finally {
       setSearching(false)
@@ -97,6 +101,7 @@ export default function SearchPage() {
     setSelectedFile(null)
     setPreviewUrl(null)
     setResults([])
+    setNoResults(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -104,26 +109,27 @@ export default function SearchPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Face Search</h1>
-      <p className="text-gray-600 mb-8">Upload a photo to find similar faces in your collection</p>
+      {toast && <Toast {...toast} onDismiss={() => setToast(null)} />}
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Face Search</h1>
+      <p className="text-gray-600 dark:text-gray-400 mb-8">Upload a photo to find similar faces in your collection</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Upload Section */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Upload Photo</h2>
-          
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 className="text-xl font-semibold mb-4 dark:text-white">Upload Photo</h2>
+
           {!previewUrl ? (
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
-              <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              <p className="text-gray-600 mb-2">Click to upload or drag and drop</p>
-              <p className="text-sm text-gray-500">PNG, JPG, WEBP up to 10MB</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">Click to upload or drag and drop</p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">PNG, JPG, WEBP up to 10MB</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -138,7 +144,7 @@ export default function SearchPage() {
                 <img
                   src={previewUrl}
                   alt="Preview"
-                  className="w-full h-64 object-contain bg-gray-100 rounded-lg"
+                  className="w-full h-64 object-contain bg-gray-100 dark:bg-gray-700 rounded-lg"
                 />
                 <button
                   onClick={clearSelection}
@@ -150,8 +156,8 @@ export default function SearchPage() {
                   </svg>
                 </button>
               </div>
-              
-              <div className="text-sm text-gray-600">
+
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 {selectedFile?.name}
               </div>
 
@@ -179,9 +185,9 @@ export default function SearchPage() {
         </div>
 
         {/* Info Section */}
-        <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-          <h3 className="text-lg font-semibold text-blue-900 mb-3">How it works</h3>
-          <ul className="space-y-2 text-blue-800">
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-300 mb-3">How it works</h3>
+          <ul className="space-y-2 text-blue-800 dark:text-blue-300">
             <li className="flex items-start gap-2">
               <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -210,13 +216,24 @@ export default function SearchPage() {
         </div>
       </div>
 
+      {/* No Results Message */}
+      {noResults && !searching && results.length === 0 && (
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-center">
+          <svg className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No similar faces found</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">This person may not be in your collection yet, or try a clearer photo.</p>
+        </div>
+      )}
+
       {/* Results Section */}
       {results.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-2xl font-semibold mb-4">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 className="text-2xl font-semibold mb-4 dark:text-white">
             Found {results.length} matching {results.length === 1 ? 'photo' : 'photos'}
           </h2>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {results.map((result) => (
               <Link
@@ -224,10 +241,10 @@ export default function SearchPage() {
                 href={`/person/${result.person_id}`}
                 className="group"
               >
-                <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
+                <div className="bg-white dark:bg-gray-700 rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
                   <div className="aspect-square bg-gray-200 relative">
                     <img
-                      src={`${API_URL}/photo/${result.photo_id}/thumbnail?size=300`}
+                      src={`/api/photo/${result.photo_id}?size=300`}
                       alt={result.person_name}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -237,9 +254,21 @@ export default function SearchPage() {
                     </div>
                   </div>
                   <div className="p-2 text-center">
-                    <div className="font-semibold text-sm text-gray-900 truncate group-hover:text-blue-600">
+                    <div className="font-semibold text-sm text-gray-900 dark:text-white truncate group-hover:text-blue-600">
                       {result.person_name}
                     </div>
+                    {result.album_name && (
+                      <div
+                        className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5 hover:text-blue-500"
+                        title={result.album_name}
+                        onClick={e => {
+                          e.preventDefault()
+                          if (result.album_id) window.location.href = `/albums/${result.album_id}`
+                        }}
+                      >
+                        {result.album_name}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

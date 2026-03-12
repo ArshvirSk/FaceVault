@@ -1,22 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [redirect, setRedirect] = useState<string | null>(null);
-  
+
   useEffect(() => {
-    // Read redirect parameter from URL
     const params = new URLSearchParams(window.location.search);
-    const redirectParam = params.get('redirect');
-    setRedirect(redirectParam);
-    console.log('Login page - URL:', window.location.href);
-    console.log('Login page - search params:', window.location.search);
-    console.log('Login page - redirect param:', redirectParam);
+    setRedirect(params.get('redirect'));
   }, []);
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,16 +37,12 @@ export default function LoginPage() {
       }
 
       const data = await response.json();
-      
-      console.log('Login successful, redirecting to:', redirect || '/dashboard');
-      
-      // Redirect to the specified page or dashboard
+
+      // Redirect to the specified page or albums home
       if (redirect) {
-        console.log('Redirecting to:', redirect);
         router.push(redirect);
       } else {
-        console.log('No redirect, going to dashboard');
-        router.push('/dashboard');
+        router.push('/albums');
       }
     } catch (err: any) {
       setError(err.message);
@@ -61,7 +52,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-[80vh] bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">

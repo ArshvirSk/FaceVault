@@ -1,24 +1,11 @@
-# Ignore all files in data directory except .gitkeep
+# Keep the empty directories that the app creates at runtime,
+# but ignore everything else (database, photos, cache files).
 *
-!.gitkeep
 !.gitignore
-
-# Database files
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-
-# Cache
-cache/
-
-# Profile photos (contains user data)
-profile_photos/
-
-# Any image files
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.webp
+!.gitkeep
+!cache/
+!cache/.gitkeep
+!profile_photos/
+!profile_photos/.gitkeep
+!uploads/
+!uploads/.gitkeep

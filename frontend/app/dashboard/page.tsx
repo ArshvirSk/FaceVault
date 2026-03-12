@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
-const API_URL = 'http://localhost:8000'
+import { API_URL } from '@/lib/config'
 
 export default function DashboardPage() {
   const router = useRouter()

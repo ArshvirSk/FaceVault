@@ -4,8 +4,7 @@ import axios from 'axios'
 import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { Toast, type ToastData } from '../components/Toast'
-
-const API_URL = 'http://localhost:8000'
+import { API_URL } from '@/lib/config'
 
 interface SearchResult {
   photo_id: number

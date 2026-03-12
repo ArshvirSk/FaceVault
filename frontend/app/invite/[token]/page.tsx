@@ -1,11 +1,10 @@
 'use client';
 
 import { checkAuth } from '@/lib/auth';
+import { API_URL } from '@/lib/config';
 import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-
-const API_URL = 'http://localhost:8000';
 
 export default function InvitePage() {
   const params = useParams();

@@ -1,5 +1,6 @@
 'use client';
 
+import { API_URL } from '@/lib/config';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -55,7 +56,7 @@ export default function RegisterPage() {
       formData.append('password', password);
       formData.append('profile_photo', profilePhoto);
 
-      const response = await fetch('http://localhost:8000/auth/register', {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         credentials: 'include',
         body: formData,

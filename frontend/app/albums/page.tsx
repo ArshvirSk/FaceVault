@@ -5,8 +5,7 @@ import axios from 'axios'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ConfirmDialog, Toast, type ToastData } from '../components/Toast'
-
-const API_URL = 'http://localhost:8000'
+import { API_URL } from '@/lib/config'
 
 interface Album {
   album_id: number

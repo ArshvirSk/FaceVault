@@ -1,11 +1,10 @@
 'use client'
 
+import { API_URL } from '@/lib/config'
 import { checkAuth, logout } from '@/lib/auth'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { ReactNode, useEffect, useState } from 'react'
-
-const API_URL = 'http://localhost:8000'
 
 function useDarkMode() {
   const [dark, setDark] = useState(false)

@@ -3,9 +3,8 @@
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { API_URL } from '@/lib/config';
 import { Toast } from '../components/Toast';
-
-const API_URL = 'http://localhost:8000';
 
 export default function ProfilePage() {
     const router = useRouter();

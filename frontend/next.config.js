@@ -1,11 +1,17 @@
 /** @type {import('next').NextConfig} */
+
+// Parse the backend URL for Next.js remotePatterns (used for <Image> src validation).
+// Falls back to localhost:8000 for local development.
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const parsedUrl = new URL(rawApiUrl)
+
 const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '8000',
+        protocol: parsedUrl.protocol.replace(':', ''),
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || '',
         pathname: '/**',
       },
     ],

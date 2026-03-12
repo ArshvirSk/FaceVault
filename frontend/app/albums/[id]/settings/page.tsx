@@ -6,9 +6,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useMemo, useState } from 'react';
-import { ConfirmDialog, Toast, type ToastData } from '../../../components/Toast';
-
-const API_URL = 'http://localhost:8000';
+import { ConfirmDialog, Toast, type ToastData } from '../../../components/Toast'
+import { API_URL } from '@/lib/config'
 
 const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 const formatDate = (s: string) => fmt.format(new Date(s));

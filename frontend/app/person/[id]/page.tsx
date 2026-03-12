@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ConfirmDialog, Toast, type ToastData } from '../../components/Toast'
 
-const API_URL = 'http://localhost:8000'
+import { API_URL } from '@/lib/config'
 
 interface Photo {
   photo_id: number

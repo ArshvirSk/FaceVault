@@ -1,11 +1,10 @@
+
+
+# FaceVault - AI-Powered Private Photo Organizer | 100% Local, Zero Cloud
+
 <div align="center">
 
-# 🔐 FaceVault
-
-### AI-Powered Private Photo Organizer — 100% Local, Zero Cloud
-
-**Automatically detect, recognize, and organize your photos by the people in them.**  
-All processing runs on your machine. Your photos never leave your device.
+![FaceVault](frontend/banner.png)
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)

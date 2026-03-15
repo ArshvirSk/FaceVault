@@ -1,10 +1,10 @@
 'use client'
 
+import { API_URL } from '@/lib/config'
 import axios from 'axios'
 import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { Toast, type ToastData } from '../components/Toast'
-import { API_URL } from '@/lib/config'
 
 interface SearchResult {
   photo_id: number

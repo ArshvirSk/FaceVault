@@ -34,19 +34,49 @@ Everything happens **locally**. No accounts with third parties, no subscriptions
 
 ## 🖼️ Screenshots
 
-| Landing Page | Albums |
-|---|---|
-| ![Landing](docs/screenshots/landing.png) | ![Albums](docs/screenshots/albums.png) |
+### Page-wise tour
 
-| People Gallery | Person Detail |
-|---|---|
-| ![People](docs/screenshots/people.png) | ![Person](docs/screenshots/person.png) |
+#### Landing
 
-| Face Search | Album Settings |
-|---|---|
-| ![Search](docs/screenshots/search.png) | ![Settings](docs/screenshots/settings.png) |
+Quick marketing splash with CTA to get started or jump into albums.
+![Landing](screenshots/home.png)
 
-> **Don't see screenshots?** Run the app, take screenshots, and save them to `docs/screenshots/`.
+#### Albums dashboard
+
+All albums with stats and quick actions.
+![Albums](screenshots/albums.png)
+
+#### New Album modal
+
+Pick a folder path (local to the backend host) and optional album name.
+![New Album](screenshots/new-album.png)
+
+#### Yours tab
+
+Auto-finds your face across the album and shows your photos only.
+![Yours Tab](screenshots/album-yourstab.png)
+
+#### Photos tab
+
+Flat grid with sort and person filters.
+![Photos Tab](screenshots/album-photostab.png)
+
+#### Photos tab — grouped (Day/Month)
+
+Toggle grouping to browse by day or month.
+![Grouped Photos](screenshots/album-photosgrouptab.png)
+
+#### Album settings
+
+Privacy mode, members list, and admin actions.
+![Album Settings](screenshots/album-settings.png)
+
+#### Invite via QR
+
+Share an invite link as a QR code for quick mobile onboarding.
+![Invite QR](screenshots/album-settings-qr.png)
+
+> **Tip:** Need updated visuals? Open the app, take fresh screenshots, and save them in `screenshots/`.
 
 ---
 

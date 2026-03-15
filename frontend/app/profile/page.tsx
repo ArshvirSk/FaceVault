@@ -1,9 +1,9 @@
 'use client';
 
+import { API_URL } from '@/lib/config';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { API_URL } from '@/lib/config';
 import { Toast } from '../components/Toast';
 
 export default function ProfilePage() {

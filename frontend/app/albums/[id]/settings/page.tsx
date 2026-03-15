@@ -1,13 +1,13 @@
 'use client';
 
+import { API_URL } from '@/lib/config';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useMemo, useState } from 'react';
-import { ConfirmDialog, Toast, type ToastData } from '../../../components/Toast'
-import { API_URL } from '@/lib/config'
+import { ConfirmDialog, Toast, type ToastData } from '../../../components/Toast';
 
 const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 const formatDate = (s: string) => fmt.format(new Date(s));

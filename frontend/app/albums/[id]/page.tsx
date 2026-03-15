@@ -1,12 +1,12 @@
 'use client'
 
+import { API_URL } from '@/lib/config'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ConfirmDialog, Toast, type ToastData } from '../../components/Toast'
-import { API_URL } from '@/lib/config'
 
 interface Person {
   person_id: number
@@ -84,6 +84,7 @@ export default function AlbumPeoplePage() {
   // Photos tab filters
   const [photoSort, setPhotoSort] = useState<'newest' | 'oldest' | 'filename'>('newest')
   const [photoPersonFilter, setPhotoPersonFilter] = useState<number | null>(null)
+  const [photoGrouping, setPhotoGrouping] = useState<'none' | 'day' | 'month'>('none')
 
   // Fetch current user once
   useEffect(() => {
@@ -297,6 +298,42 @@ export default function AlbumPeoplePage() {
     : people
 
   const displayedPhotos: AlbumPhoto[] = albumPhotos
+
+  const formatDayLabel = (timestamp: string | null) => {
+    if (!timestamp) return 'Unknown date'
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return 'Unknown date'
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  const formatMonthLabel = (timestamp: string | null) => {
+    if (!timestamp) return 'Unknown month'
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return 'Unknown month'
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }
+
+  const groupedPhotos = useMemo(() => {
+    if (photoGrouping === 'none') return [{ label: 'All photos', photos: displayedPhotos }]
+
+    const buckets: { label: string; photos: AlbumPhoto[] }[] = []
+    const getLabel = (timestamp: string | null) => {
+      if (photoGrouping === 'day') return formatDayLabel(timestamp)
+      return formatMonthLabel(timestamp)
+    }
+
+    displayedPhotos.forEach((photo) => {
+      const label = getLabel(photo.timestamp)
+      const lastBucket = buckets[buckets.length - 1]
+      if (!lastBucket || lastBucket.label !== label) {
+        buckets.push({ label, photos: [photo] })
+      } else {
+        lastBucket.photos.push(photo)
+      }
+    })
+
+    return buckets
+  }, [displayedPhotos, photoGrouping])
 
   const getThresholdLabel = (value: number) => {
     if (value <= 0.4) return 'Very Aggressive'
@@ -640,6 +677,25 @@ export default function AlbumPeoplePage() {
               </select>
             </div>
 
+            {/* Grouping */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">Group:</label>
+              <div className="flex items-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full overflow-hidden shadow-sm">
+                {[{ id: 'none', label: 'All Photos' }, { id: 'day', label: 'Daywise' }, { id: 'month', label: 'Monthwise' }].map(option => (
+                  <button
+                    key={option.id}
+                    onClick={() => setPhotoGrouping(option.id as 'none' | 'day' | 'month')}
+                    className={`px-3 py-1 text-xs font-medium transition-all ${photoGrouping === option.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Clear filters */}
             {(photoPersonFilter !== null || photoSort !== 'newest') && (
               <button
@@ -669,17 +725,33 @@ export default function AlbumPeoplePage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-            {displayedPhotos.length === 0 && !photosFetching ? (
-              <div className="col-span-full py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
-                {photoPersonFilter !== null ? 'No photos found for this person.' : 'No photos in this album yet.'}
-              </div>
-            ) : (
-              displayedPhotos.map((photo) => (
+          {displayedPhotos.length === 0 && !photosFetching ? (
+            <div className="py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
+              {photoPersonFilter !== null ? 'No photos found for this person.' : 'No photos in this album yet.'}
+            </div>
+          ) : photoGrouping === 'none' ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              {groupedPhotos[0].photos.map((photo) => (
                 <PhotoTile key={`${photo.photo_id}-${photoSort}-${photoPersonFilter}`} photoId={photo.photo_id} />
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {groupedPhotos.map((bucket, idx) => (
+                <div key={`${bucket.label}-${idx}`} className="space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{bucket.label}</h3>
+                    <span className="text-xs text-gray-400">{bucket.photos.length} photo{bucket.photos.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                    {bucket.photos.map((photo) => (
+                      <PhotoTile key={`${photo.photo_id}-${photoSort}-${photoPersonFilter}-${bucket.label}`} photoId={photo.photo_id} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         (!yoursLoading || view === 'people') && (

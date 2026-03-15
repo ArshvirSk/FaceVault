@@ -1,11 +1,11 @@
 'use client'
 
+import { API_URL } from '@/lib/config'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import Link from 'next/link'
 import { useState } from 'react'
 import { ConfirmDialog, Toast, type ToastData } from '../components/Toast'
-import { API_URL } from '@/lib/config'
 
 interface Album {
   album_id: number

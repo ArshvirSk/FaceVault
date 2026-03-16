@@ -90,12 +90,14 @@ Upload any photo to instantly find matching faces across all your albums.
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Python | 3.9 – 3.12 | 3.11 recommended |
-| Node.js | 18+ | For the frontend |
+| Python | 3.10.x | Tested with **3.10.11**; 3.10+ required |
+| Node.js | 18.17+ | Required for Next.js 15 |
 | npm | 9+ | Comes with Node.js |
 | Git | any | To clone the repo |
 
 > **GPU support**: Runs on CPU by default. For GPU acceleration, replace `onnxruntime` with `onnxruntime-gpu` in `requirements.txt` and install CUDA.
+
+> **Python version**: The virtual environment was created with Python **3.10.11**. Using a different minor version (3.11, 3.12) may work but is untested. Stick to 3.10.x for guaranteed compatibility with all pinned packages.
 
 ---
 
@@ -378,7 +380,48 @@ FaceVault/
 | Styling | Tailwind CSS 3 |
 | State / data fetching | TanStack React Query v5 |
 | HTTP client | Axios |
-| Languages | Python 3.11 · TypeScript 5.7 |
+| Languages | Python 3.10.11 · TypeScript 5.7 |
+
+---
+
+## 📦 Dependencies
+
+### Backend (`backend/requirements.txt`) — Python 3.10.11
+
+| Package | Version | Role |
+|---------|---------|------|
+| `fastapi` | 0.115.0 | Async REST API framework |
+| `uvicorn` | 0.32.0 | ASGI server to run FastAPI |
+| `python-multipart` | 0.0.12 | Multipart form data / file uploads |
+| `opencv-python` | 4.10.0.84 | Image decoding, resizing, face crop |
+| `torch` | 2.6.0 | PyTorch — ML tensor runtime used by InsightFace |
+| `torchvision` | 0.21.0 | Vision utilities paired with PyTorch |
+| `insightface` | 0.7.3 | RetinaFace detection + ArcFace embeddings (`buffalo_l`) |
+| `onnxruntime` | 1.20.1 | ONNX inference backend for InsightFace models |
+| `scikit-learn` | ≥1.6.0 | UMAP / preprocessing used by HDBSCAN |
+| `hdbscan` | 0.8.41 | Density-based face clustering |
+| `faiss-cpu` | 1.9.0.post1 | FAISS L2 vector index for face similarity search |
+| `numpy` | 1.26.4 | Numerical arrays, embedding math |
+| `Pillow` | 10.4.0 | Image format handling and thumbnail generation |
+| `aiosqlite` | 0.20.0 | Async SQLite driver |
+| `bcrypt` | 4.1.2 | Password hashing |
+
+> Replace `onnxruntime` with `onnxruntime-gpu` and install CUDA for GPU acceleration.
+
+### Frontend (`frontend/package.json`) — Node.js 18.17+
+
+| Package | Version | Role |
+|---------|---------|------|
+| `next` | ^15.1.0 | React framework — App Router, SSR, API routes |
+| `react` | ^19.0.0 | UI library |
+| `react-dom` | ^19.0.0 | React DOM renderer |
+| `@tanstack/react-query` | ^5.62.0 | Server state management and caching |
+| `@tanstack/react-virtual` | ^3.10.0 | Virtualised list/grid rendering for large photo sets |
+| `axios` | ^1.7.0 | HTTP client for API calls |
+| `qrcode.react` | ^4.2.0 | QR code generation for invite links |
+| `tailwindcss` | ^3.4.0 | Utility-first CSS framework |
+| `typescript` | ^5.7.0 | Static typing |
+| `postcss` + `autoprefixer` | ^8.4 / ^10.4 | CSS processing pipeline |
 
 ---
 

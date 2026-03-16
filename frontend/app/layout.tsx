@@ -7,6 +7,10 @@ import { Providers } from './providers'
 export const metadata: Metadata = {
   title: 'FaceVault',
   description: 'Local AI Face Recognition Photo Organizer',
+  icons: {
+    icon: '/logo-black.png',
+    apple: '/logo-black.png',
+  },
 }
 
 export default function RootLayout({

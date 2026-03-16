@@ -75,6 +75,11 @@ Privacy mode, members list, and admin actions.
 Share an invite link as a QR code for quick mobile onboarding.
 ![Invite QR](screenshots/album-settings-qr.png)
 
+#### Face Search
+
+Upload any photo to instantly find matching faces across all your albums.
+![Face Search](screenshots/search.png)
+
 > **Tip:** Need updated visuals? Open the app, take fresh screenshots, and save them in `screenshots/`.
 
 ---
